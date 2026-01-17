@@ -7,6 +7,7 @@ import time
 import pandas as pd
 from pathlib import Path
 import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from streamlit_autorefresh import st_autorefresh
 import os
 
@@ -33,77 +34,79 @@ def get_live_data():
     return None
 
 if "history" not in st.session_state:
-    st.session_state.history = pd.DataFrame(columns=["ts", "eye_open", "smile", "tilt", "confused"])
+    st.session_state.history = pd.DataFrame(columns=[
+        "ts", "eye_open", "mouth", "stability", 
+        "smile", "confused", "distraction"
+    ])
 
-left_col, right_col = st.columns([2, 1], gap="large")
+left_col, right_col = st.columns([1.8, 1.2], gap="large")
 
 with left_col:
     st.markdown("<h2 style='color: #B4FF96;'>RESEARCH STIMULUS</h2>", unsafe_allow_html=True)
     st.video("https://www.youtube.com/watch?v=dQw4w9WgXcQ") 
-    st.caption("💡 Natural responses are being quantified through JSZ Sentiment Engine.")
+    st.caption("💡 JSZ SENTINEL: Invisible feedback collection in progress.")
     
     st.divider()
-    if st.button("🏁 GENERATE AI INSIGHT REPORT"):
-        st.info("🔄 Processing historical data points for OpenAI synthesis...")
+    st.markdown("### 🤖 AI Insight Agent")
+    if st.button("🏁 ANALYZE & SUBMIT TO SURVEYMONKEY"):
+        st.info("🔄 Agent is synthesizing facial telemetry into product insights...")
 
 with right_col:
     st.markdown("<h2 style='color: #F0F0F0;'>LIVE ANALYTICS</h2>", unsafe_allow_html=True)
     
     live = get_live_data()
     if live:
-        raw_eye = float(live.get("eye_score") or 0.0)
-        eye_openness = 1.0 - raw_eye 
+        eye_open = 1.0 - float(live.get("eye_score") or 0.0)
+        mouth_act = float(live.get("yawn_score") or 0.0)
+        stability = max(0, 100 - float(live.get("tilt_val") or 0.0))
         
-        smile_v = float(live.get("smile_score") or 0.0)
-        tilt_v = float(live.get("tilt_val") or 0.0)
-        confused_v = float(live.get("confused_score") or 0.0)
+        smile = float(live.get("smile_score") or 0.0)
+        confused = float(live.get("confused_score") or 0.0)
+        distract = float(live.get("distraction_score") or 0.0) # 确保 engine 传了这个值
+        
         status = str(live.get("status") or "SCANNING")
 
         new_row = {
             "ts": time.time(),
-            "eye_open": eye_openness,
-            "smile": smile_v,
-            "tilt": tilt_v,
-            "confused": confused_v
+            "eye_open": eye_open, "mouth": mouth_act, "stability": stability/100.0,
+            "smile": smile, "confused": confused, "distraction": distract
         }
-        st.session_state.history = pd.concat([st.session_state.history, pd.DataFrame([new_row])], ignore_index=True).tail(80)
+        st.session_state.history = pd.concat([st.session_state.history, pd.DataFrame([new_row])], ignore_index=True).tail(60)
 
-        st.info(f"Analysis State: {status}")
+        st.info(f"System Diagnosis: {status}")
 
-        c1, c2 = st.columns(2)
-        with c1:
-            st.metric("EYE OPEN", f"{eye_openness:.2f}")
-            st.metric("SMILE", f"{smile_v:.2f}")
-        with c2:
-            st.metric("STABILITY", f"{100-tilt_v:.1f}%")
-            st.metric("CONFUSION", f"{confused_v:.2f}")
+        st.markdown("#### 🔋 Physical State")
+        c1, c2, c3 = st.columns(3)
+        with c1: st.metric("EYE OPEN", f"{eye_open:.2f}")
+        with c2: st.metric("MOUTH", f"{mouth_act:.2f}")
+        with c3: st.metric("STABILITY", f"{stability:.1f}%")
 
-        from plotly.subplots import make_subplots
-        
-        fig = make_subplots(specs=[[{"secondary_y": True}]])
+        st.markdown("#### 🧠 Emotional Feedback")
+        c4, c5, c6 = st.columns(3)
+        with c4: st.metric("SMILE", f"{smile:.2f}")
+        with c5: st.metric("CONFUSION", f"{confused:.2f}")
+        with c6: st.metric("DISTRACT", f"{distract:.2f}")
 
-        fig.add_trace(go.Scatter(y=st.session_state.history["eye_open"], 
-                                 name="Eye Openness", 
-                                 line=dict(color='#B4FF96', width=3, shape='spline')), secondary_y=False)
-        
-        fig.add_trace(go.Scatter(y=st.session_state.history["smile"], 
-                                 name="Smile Index", 
-                                 line=dict(color='#FFB450', width=3, shape='spline')), secondary_y=False)
+        fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12)
 
-        fig.add_trace(go.Scatter(y=st.session_state.history["tilt"], 
-                                 name="Head Tilt (Deg)", 
-                                 line=dict(color='#64B4FF', width=2, dash='dot', shape='spline')), secondary_y=True)
+        # 图 1
+        fig.add_trace(go.Scatter(y=st.session_state.history["eye_open"], name="Eye", line=dict(color='#B4FF96', width=2)), row=1, col=1)
+        fig.add_trace(go.Scatter(y=st.session_state.history["mouth"], name="Mouth", line=dict(color='#E196FF', width=2)), row=1, col=1)
+        fig.add_trace(go.Scatter(y=st.session_state.history["stability"], name="Stability", line=dict(color='#64B4FF', width=2, dash='dot')), row=1, col=1)
+
+        # 图 2
+        fig.add_trace(go.Scatter(y=st.session_state.history["smile"], name="Smile", line=dict(color='#FFB450', width=2)), row=2, col=1)
+        fig.add_trace(go.Scatter(y=st.session_state.history["confused"], name="Confusion", line=dict(color='#FF6464', width=2)), row=2, col=1)
+        fig.add_trace(go.Scatter(y=st.session_state.history["distraction"], name="Distraction", line=dict(color='#FFFFFF', width=2, dash='dash')), row=2, col=1)
 
         fig.update_layout(
-            height=400,
-            margin=dict(l=0, r=0, t=20, b=0),
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            legend=dict(orientation="h", yanchor="bottom", y=1.1, xanchor="center", x=0.5),
-            yaxis=dict(range=[0, 1.1], showgrid=True, gridcolor='#303030', title="Score (0-1)"),
-            yaxis2=dict(range=[0, 60], showgrid=False, title="Degrees")
+            height=500, margin=dict(l=0, r=0, t=10, b=0),
+            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+            legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5),
+            hovermode="x unified"
         )
+        fig.update_yaxes(range=[0, 1.1], gridcolor='#303030')
         
-        st.plotly_chart(fig, use_container_width=True)
+        st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
     else:
-        st.warning("📡 Waiting for engine data sync...")
+        st.warning("📡 Awaiting Telemetry from JSZ Engine...")
