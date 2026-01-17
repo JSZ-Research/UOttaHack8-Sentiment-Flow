@@ -6,6 +6,8 @@ import math
 import numpy as np
 from collections import deque
 
+import json
+
 #Clolour
 COLOR_BG = (45, 20, 10)       #深藏青背景
 COLOR_TEXT_MAIN = (240, 240, 240)  #近纯白文字
