@@ -1,3 +1,5 @@
+# cd /Users/jiamulin/Desktop/Sentiment-Flow/UOttaHack8-Sentiment-Flow
+# streamlit run dashboard.py
 import streamlit as st
 import json
 import time
