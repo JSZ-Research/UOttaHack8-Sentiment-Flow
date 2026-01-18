@@ -61,21 +61,39 @@ def generate_and_submit_report(history_df, video_url):
     """
 
     try:
+        # --- 3. 调用 OpenAI ---
         response = client.chat.completions.create(
             model="gpt-4o", 
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.7 # 增加一点创造性
+            messages=[{"role": "user", "content": prompt}]
         )
         report_text = response.choices[0].message.content
 
-        # 3. 自动提交到 SurveyMonkey
-        url = f"https://api.surveymonkey.com/v3/collectors/{SM_COLLECTOR_ID}/responses"
+        # --- 4. 自动提交到 SurveyMonkey (修复版结构) ---
+        PAGE_ID = "72821051"      # <--- 填入刚才查到的 ID
+        COLLECTOR_ID = "438509525"
+        QUESTION_ID = "275366150"
+
+        url = f"https://api.surveymonkey.com/v3/collectors/{COLLECTOR_ID}/responses"
         headers = {"Authorization": f"Bearer {SM_TOKEN}", "Content-Type": "application/json"}
+        
+        # 必须带上 'id': PAGE_ID
         payload = {
-            "pages": [{"questions": [{"id": SM_QUESTION_ID, "answers": [{"text": report_text}]}]}]
+            "pages": [
+                {
+                    "id": PAGE_ID, 
+                    "questions": [
+                        {
+                            "id": QUESTION_ID,
+                            "answers": [{"text": report_text}]
+                        }
+                    ]
+                }
+            ]
         }
-        requests.post(url, headers=headers, json=payload)
+        
+        sync_res = requests.post(url, headers=headers, json=payload)
+        print(f"SurveyMonkey Sync Status: {sync_res.status_code}")
 
         return report_text, avg_stats
     except Exception as e:
-        return f"Error connecting to AI Agent: {e}", avg_stats
+        return f"Error: {e}", avg_stats

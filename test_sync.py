@@ -5,6 +5,7 @@ import json
 TOKEN = "VoT9W4PuK0AzA.xUGQSK2qNvPU8VgIGnaC-LOKkqPy3ID5lD8K6Aos8hVWUdQtYCXNo9Yc1UUJYy.7f.7AFYbYQSEz7nO7uF8sOpjc12cqbttxGvK-hacBdlN8DMVTv4"
 COLLECTOR_ID = "438509525"
 QUESTION_ID = "275366150"
+PAGE_ID = "72821051" 
 
 url = f"https://api.surveymonkey.com/v3/collectors/{COLLECTOR_ID}/responses"
 
@@ -16,11 +17,12 @@ headers = {
 payload = {
     "pages": [
         {
+            "id": PAGE_ID,
             "questions": [
                 {
                     "id": QUESTION_ID,
                     "answers": [
-                        {"text": "JSZ Diagnostic Test: The system is attempting to sync."}
+                        {"text": "JSZ Test: Now with Page ID!"}
                     ]
                 }
             ]
