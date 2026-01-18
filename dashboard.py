@@ -66,52 +66,61 @@ if st.session_state.view_mode == "monitor":
                 st.warning("No data captured. Please start the engine first.")
 
     with right_col:
-        st.markdown("<h2 style='color: #F0F0F0;'>LIVE ANALYTICS</h2>", unsafe_allow_html=True)
-        live = get_live_data()
-        
-        if live:
-            eye_open = 1.0 - float(live.get("eye_score") or 0.0)
-            mouth_act = float(live.get("yawn_score") or 0.0)
-            stability = max(0, 100 - float(live.get("tilt_val") or 0.0))
-            smile = float(live.get("smile_score") or 0.0)
-            confused = float(live.get("confused_score") or 0.0)
-            distract = float(live.get("distraction_score") or 0.0)
-            status = str(live.get("status") or "SCANNING")
+            st.markdown("<h2 style='color: #F0F0F0;'>LIVE ANALYTICS</h2>", unsafe_allow_html=True)
+            
+            # 1. 嵌入实时视频流 (由 Flask 引擎端提供)
+            # 画面自带深蓝透明遮罩和实时数值，无需额外 Metric 卡片
+            st.image("http://localhost:5001/video_feed", use_container_width=True)
 
-            new_row = {
-                "ts": time.time(), "eye_open": eye_open, "mouth": mouth_act, 
-                "stability": stability/100.0, "smile": smile, 
-                "confused": confused, "distraction": distract
-            }
-            st.session_state.history = pd.concat([st.session_state.history, pd.DataFrame([new_row])], ignore_index=True).tail(60)
+            live = get_live_data()
+            
+            if live:
+                # 2. 数据解析与处理
+                eye_open = 1.0 - float(live.get("eye_score") or 0.0)
+                mouth_act = float(live.get("yawn_score") or 0.0)
+                stability = max(0, 100 - float(live.get("tilt_val") or 0.0))
+                smile = float(live.get("smile_score") or 0.0)
+                confused = float(live.get("confused_score") or 0.0)
+                distract = float(live.get("distraction_score") or 0.0)
+                status = str(live.get("status") or "SCANNING")
 
-            st.info(f"System State: {status}")
+                # 更新历史记录用于绘图
+                new_row = {
+                    "ts": time.time(), "eye_open": eye_open, "mouth": mouth_act, 
+                    "stability": stability/100.0, "smile": smile, 
+                    "confused": confused, "distraction": distract
+                }
+                st.session_state.history = pd.concat([st.session_state.history, pd.DataFrame([new_row])], ignore_index=True).tail(60)
 
-            st.markdown("#### 🔋 Physical State")
-            c1, c2, c3 = st.columns(3)
-            with c1: st.metric("EYE OPEN", f"{eye_open:.2f}")
-            with c2: st.metric("MOUTH", f"{mouth_act:.2f}")
-            with c3: st.metric("STABILITY", f"{stability:.1f}%")
+                # 3. 实时状态小条
+                st.caption(f"Engine Diagnosis: {status}")
 
-            st.markdown("#### 🧠 Emotional Feedback")
-            c4, c5, c6 = st.columns(3)
-            with c4: st.metric("SMILE", f"{smile:.2f}")
-            with c5: st.metric("CONFUSION", f"{confused:.2f}")
-            with c6: st.metric("DISTRACT", f"{distract:.2f}")
+                # 4. 核心折线图 (完全保留你的原始逻辑，仅调整了 shared_xaxes 体验)
+                fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12)
+                
+                # 图 1: Physical Metrics
+                fig.add_trace(go.Scatter(y=st.session_state.history["eye_open"], name="Eye", line=dict(color='#B4FF96', width=2)), row=1, col=1)
+                fig.add_trace(go.Scatter(y=st.session_state.history["mouth"], name="Mouth", line=dict(color='#E196FF', width=2)), row=1, col=1)
+                fig.add_trace(go.Scatter(y=st.session_state.history["stability"], name="Stability", line=dict(color='#64B4FF', width=2, dash='dot')), row=1, col=1)
+                
+                # 图 2: Emotional Metrics
+                fig.add_trace(go.Scatter(y=st.session_state.history["smile"], name="Smile", line=dict(color='#FFB450', width=2)), row=2, col=1)
+                fig.add_trace(go.Scatter(y=st.session_state.history["confused"], name="Confusion", line=dict(color='#FF6464', width=2)), row=2, col=1)
+                fig.add_trace(go.Scatter(y=st.session_state.history["distraction"], name="Distract", line=dict(color='#FFFFFF', width=2, dash='dash')), row=2, col=1)
 
-            fig = make_subplots(rows=2, cols=1, shared_xaxes=True, vertical_spacing=0.12)
-            fig.add_trace(go.Scatter(y=st.session_state.history["eye_open"], name="Eye", line=dict(color='#B4FF96', width=2)), row=1, col=1)
-            fig.add_trace(go.Scatter(y=st.session_state.history["mouth"], name="Mouth", line=dict(color='#E196FF', width=2)), row=1, col=1)
-            fig.add_trace(go.Scatter(y=st.session_state.history["stability"], name="Stability", line=dict(color='#64B4FF', width=2, dash='dot')), row=1, col=1)
-            fig.add_trace(go.Scatter(y=st.session_state.history["smile"], name="Smile", line=dict(color='#FFB450', width=2)), row=2, col=1)
-            fig.add_trace(go.Scatter(y=st.session_state.history["confused"], name="Confusion", line=dict(color='#FF6464', width=2)), row=2, col=1)
-            fig.add_trace(go.Scatter(y=st.session_state.history["distraction"], name="Distract", line=dict(color='#FFFFFF', width=2, dash='dash')), row=2, col=1)
-
-            fig.update_layout(height=480, margin=dict(l=0, r=0, t=10, b=0), paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', hovermode="x unified")
-            fig.update_yaxes(range=[0, 1.1], gridcolor='#303030')
-            st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
-        else:
-            st.warning("📡 Waiting for Engine Data...")
+                fig.update_layout(
+                    height=480, 
+                    margin=dict(l=0, r=0, t=10, b=0), 
+                    paper_bgcolor='rgba(0,0,0,0)', 
+                    plot_bgcolor='rgba(0,0,0,0)', 
+                    hovermode="x unified",
+                    legend=dict(orientation="h", yanchor="bottom", y=1.02, xanchor="center", x=0.5)
+                )
+                fig.update_yaxes(range=[0, 1.1], gridcolor='#303030')
+                
+                st.plotly_chart(fig, use_container_width=True, config={'displayModeBar': False})
+            else:
+                st.warning("📡 Waiting for Engine Data...")
 
 elif st.session_state.view_mode == "report":
     st.markdown("<h1 style='color: #B4FF96; text-align: center;'>SENTIMENT SYNTHESIS</h1>", unsafe_allow_html=True)

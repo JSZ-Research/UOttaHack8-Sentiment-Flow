@@ -7,6 +7,8 @@ import numpy as np
 from collections import deque
 import os 
 import json
+from flask import Flask, Response
+import threading
 
 COLOR_BG = (45, 20, 10)       
 COLOR_TEXT_MAIN = (240, 240, 240)  
@@ -42,6 +44,30 @@ current_global_color = COLOR_SAFE
 
 cap = cv2.VideoCapture(0)
 FONT = cv2.FONT_HERSHEY_SIMPLEX
+
+app = Flask(__name__)
+output_frame = None  # 这是全局变量，存最新的画面
+lock = threading.Lock() # 线程锁，防止读写冲突
+
+def generate():
+    global output_frame, lock
+    while True:
+        with lock:
+            if output_frame is None:
+                continue
+            (flag, encodedImage) = cv2.imencode(".jpg", output_frame)
+            if not flag:
+                continue
+        yield(b'--frame\r\n' b'Content-Type: image/jpeg\r\n\r\n' + bytearray(encodedImage) + b'\r\n')
+
+@app.route("/video_feed")
+def video_feed():
+    return Response(generate(), mimetype="multipart/x-mixed-replace; boundary=frame")
+
+def run_server():
+    app.run(host='0.0.0.0', port=5001, debug=False, threaded=True, use_reloader=False)
+
+threading.Thread(target=run_server, daemon=True).start()
 
 while cap.isOpened():
     ret, frame = cap.read()
@@ -115,7 +141,30 @@ while cap.isOpened():
         with open(data_path, "w") as f:
             json.dump(data_packet, f)
         
-        
+        # 轮廓
+        LEFT_EYE = [362, 382, 381, 380, 374, 373, 390, 249, 263, 466, 388, 387, 386, 385, 384, 398]
+        RIGHT_EYE = [33, 7, 163, 144, 145, 153, 154, 155, 133, 173, 157, 158, 159, 160, 161, 246]
+        LIPS = [61, 146, 91, 181, 84, 17, 314, 405, 324, 308, 415, 310, 311, 312, 13, 82, 81, 80, 191, 78]
+
+        def draw_part(indices, color, thickness=1):
+            points = []
+            for idx in indices:
+                pt = landmarks[idx]
+                points.append([int(pt.x * frame.shape[1]), int(pt.y * frame.shape[0])])
+            pts = np.array(points, np.int32)
+            cv2.polylines(frame, [pts], True, color, thickness, cv2.LINE_AA)
+
+        draw_part(LEFT_EYE, COLOR_SAFE, 1)
+        draw_part(RIGHT_EYE, COLOR_SAFE, 1)
+        draw_part(LIPS, (255, 255, 255), 1)
+
+        if len(landmarks) > 473:
+            l_pupil = landmarks[468]
+            r_pupil = landmarks[473]
+            cv2.circle(frame, (int(l_pupil.x * frame.shape[1]), int(l_pupil.y * frame.shape[0])), 1, COLOR_SAFE, -1)
+            cv2.circle(frame, (int(r_pupil.x * frame.shape[1]), int(r_pupil.y * frame.shape[0])), 1, COLOR_SAFE, -1)
+            # 以上是轮廓
+
         cv2.rectangle(overlay, (20, 20), (580, 380), COLOR_BG, -1)
         cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
 
@@ -138,6 +187,9 @@ while cap.isOpened():
         cv2.rectangle(overlay, (20, 20), (580, 100), COLOR_BG, -1)
         cv2.addWeighted(overlay, 0.6, frame, 0.4, 0, frame)
         cv2.putText(frame, "SCANNING FOR OPERATOR", (40, 70), FONT, 1.0, (150, 150, 150), 2, cv2.LINE_AA)
+
+    with lock:
+        output_frame = frame.copy()
 
     cv2.imshow('Sentiment-Flow Sentinel Pro', frame)
     if cv2.waitKey(1) & 0xFF == ord('q'):
