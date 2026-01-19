@@ -1,52 +1,151 @@
-# UOttaHack8-Sentiment-Flow
- Project by Jiamu and Junkai in UOttaHack8
-# Sentiment Flow (UOttaHack 8)
+# Sentiment Flow
 
-This is a small UOttaHack 8 project that turns a webcam stream into a live “signal flow” dashboard. The engine keeps running in its own process, and the dashboard just reads the latest outputs, so the UI stays smooth instead of freezing when the vision loop gets heavy.
+**Capture sentiment, not attention.**
 
-You’ll see a live camera panel, a few time-series curves, and (optionally) an AI-generated summary based on the recent data.
+A real-time facial signal monitoring system that captures user feedback passively — no forms, no clicks, no friction.
 
-## Running it
+---
 
-You need two terminals.
+## What is this?
 
-Terminal A (engine):
+Traditional surveys interrupt users and demand their time. Sentiment Flow flips that model: it observes facial signals while users consume content, turning passive viewing into actionable feedback data.
 
-```bash
-source venv/bin/activate
-python3 sentiment_flow_engine.py
+Paste any URL — a survey, a video, a product ad, a landing page — and the system tracks engagement in real time. Results sync directly to SurveyMonkey.
+
+---
+
+## Features
+
+- **Content-agnostic input**: Works with any URL (surveys, videos, ads, landing pages, etc.)
+- **Real-time facial landmark detection**: Powered by MediaPipe
+  - Fatigue indicators: eye closure, yawning, head tilt angle
+  - Expression tracking: smile detection, frown detection
+  - Gaze direction monitoring
+- **Live dashboard**: Time-series visualization of engagement metrics
+- **LLM-powered analysis**: AI-generated session summaries via OpenAI API
+- **SurveyMonkey integration**: Automatic data sync to SurveyMonkey backend
+
+---
+
+## Architecture
+
+```
+User inputs URL → app.py opens content
+                        ↓
+              Webcam runs in background
+                        ↓
+         Facial Landmark Detection (MediaPipe)
+              ├─ Fatigue signals
+              ├─ Expression signals
+              └─ Gaze tracking
+                        ↓
+         Engagement scoring + time-series data
+                        ↓
+              LLM analysis (OpenAI API)
+                        ↓
+            Sync to SurveyMonkey backend
 ```
 
-If you want to sanity check the video stream:
+The system runs as two separate processes:
+- **Engine** (`sentiment_flow_engine.py`): Handles webcam input, facial analysis, and exposes an MJPEG stream
+- **Dashboard** (`dashboard.py`): Streamlit frontend that reads processed data and visualizes metrics
+
+This separation keeps the UI responsive while the vision pipeline runs continuously.
+
+---
+
+## Tech Stack
+
+| Component | Technology |
+|-----------|------------|
+| Facial detection | MediaPipe Face Landmarker |
+| Video streaming | MJPEG over HTTP |
+| Dashboard | Streamlit |
+| AI analysis | OpenAI API |
+| Data sync | SurveyMonkey API |
+| Language | Python |
+
+---
+
+## Getting Started
+
+### Prerequisites
 
 ```bash
-curl -I http://127.0.0.1:8000/video_feed
+pip install -r requirements.txt
 ```
 
-Terminal B (dashboard):
+You'll need:
+- OpenAI API key
+- SurveyMonkey API credentials
+
+### Running the system
+
+Simply run:
 
 ```bash
-source venv/bin/activate
+python app.py
+```
+
+This will:
+1. Prompt you to enter a URL
+2. Open the content in your browser
+3. Start the facial detection engine
+4. Launch the Streamlit dashboard
+
+Alternatively, run components separately:
+
+**Terminal A (engine):**
+```bash
+python sentiment_flow_engine.py
+```
+
+**Terminal B (dashboard):**
+```bash
 streamlit run dashboard.py
 ```
 
-Then open:
-`http://127.0.0.1:8501`
+Dashboard will be available at `http://127.0.0.1:8501`
 
-## What’s in here
+---
 
-`sentiment_flow_engine.py` handles the webcam + face processing and writes out the “latest state” files used by the UI. It also serves the MJPEG feed at `http://127.0.0.1:8000/video_feed`.
+## File Structure
 
-`dashboard.py` is the Streamlit front end. It reads `live_data.json`, plots the live curves, and embeds the MJPEG stream.
+```
+├── app.py                    # Main entry point
+├── sentiment_flow_engine.py  # Webcam + facial analysis engine
+├── dashboard.py              # Streamlit visualization
+├── analysis_agent.py         # LLM-powered summary generation
+├── face_landmarker.task      # MediaPipe model file
+├── live_data.json            # Real-time data buffer
+├── find_ids.py               # Utility scripts
+├── get_details.py
+└── test_sync.py
+```
 
-`analysis_agent.py` is the optional AI helper. The dashboard imports it to generate a short report/summary. If you don’t care about that part, you can ignore it.
+---
 
-## Notes
+## Demo
 
-If the dashboard loads but the camera panel is blank, the first thing to check is whether the engine is actually running and the stream endpoint responds. Opening `http://127.0.0.1:8000/video_feed` directly in a browser is the fastest test.
+A sample stimulus video is included for testing. It uses a bait-and-switch format (tense setup → Rickroll) designed to trigger a detectable smile response, demonstrating that the facial detection pipeline works.
 
-Also, `127.0.0.1` only works when the engine and dashboard are on the same machine. If you ever split them across two laptops, the dashboard needs to point to the engine machine’s LAN IP instead.
+---
 
-## Why it’s split into two processes
+## Background
 
-I tried doing “read frame → display in Streamlit” at first, and it was flickery and choppy. Keeping the engine separate and using MJPEG for the camera feed ended up being a lot more stable for a demo.
+Built at **uOttaHack 8** for the SurveyMonkey Challenge.
+
+The challenge asked participants to "make static forms obsolete" and build solutions where feedback is "invisible, gamified, or instantaneous." Sentiment Flow answers that by making the user's face the survey — no forms required.
+
+---
+
+## Team
+
+- **Jiamu** 
+- **Junkai**
+
+---
+
+## License
+
+MIT
