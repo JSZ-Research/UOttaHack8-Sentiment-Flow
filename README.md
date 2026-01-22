@@ -13,7 +13,9 @@ Traditional surveys interrupt users and demand their time. Sentiment Flow flips 
 Paste any URL — a survey, a video, a product ad, a landing page — and the system tracks engagement in real time. Results sync directly to SurveyMonkey.
 
 ---
-Live Demo (YouTube): Live Demo
+
+**Live Demo (YouTube):** [Live Demo](https://www.youtube.com/watch?v=uDgtdfvAk6M)
+
 ---
 
 ## Features
